@@ -6,7 +6,10 @@
 // This software may be modified and distributed under the terms
 // of the BSD license. See the LICENSE file for details.
 
+import OSLog
 import Accelerate
+
+fileprivate let logger = Logger(subsystem: "LASwift", category: "MatrixAlgebra")
 
 /// Matrix triangular part.
 ///
@@ -141,7 +144,7 @@ public func ^ (_ a: Matrix, _ p: Int) -> Matrix {
 /// - Parameters:
 ///     - A: square matrix to invert
 /// - Returns: inverse of A matrix
-public func inv(_ A: Matrix) -> Matrix {
+public func inv(_ A: Matrix) -> Matrix? {
     precondition(A.rows == A.cols, "Matrix dimensions must agree")
     let B = Matrix(A)
     
@@ -157,7 +160,10 @@ public func inv(_ A: Matrix) -> Matrix {
     
     dgetrf_(&M, &N, &(B.flat), &LDA, &pivot, &error)
     
-    precondition(error == 0, "Matrix is non invertible")
+    if error != 0 {
+        print("Matrix is non invertible")
+        return nil
+    } 
     
     /* Query and allocate the optimal workspace */
     
@@ -170,7 +176,10 @@ public func inv(_ A: Matrix) -> Matrix {
     
     dgetri_(&N, &(B.flat), &LDA, &pivot, &work, &lWork, &error)
     
-    precondition(error == 0, "Matrix is non invertible")
+    if error != 0 {
+        logger.error("Matrix is non invertible")
+        return nil
+    } 
     
     return B
 }
@@ -182,7 +191,7 @@ public func inv(_ A: Matrix) -> Matrix {
 /// - Parameters:
 ///     - A: square matrix to calculate eigen values and vectors of
 /// - Returns: eigenvectors matrix (by rows) and diagonal matrix with eigenvalues on the main diagonal
-public func eig(_ A: Matrix) -> (V: Matrix, D: Matrix) {
+public func eig(_ A: Matrix) -> (V: Matrix, D: Matrix)? {
     precondition(A.rows == A.cols, "Matrix dimensions must agree")
     
     let V = Matrix(A)
@@ -222,7 +231,10 @@ public func eig(_ A: Matrix) -> (V: Matrix, D: Matrix) {
     
     dgeev_(&jobvl, &jobvr, &N, &V.flat, &LDA, &wr, &wi, &vl, &ldvl, &vr, &ldvr, &work, &lWork, &error)
     
-    precondition(error == 0, "Failed to compute eigen vectors")
+    if error != 0 {
+        logger.error("Failed to compute eigen vectors")
+        return nil
+    } 
     
     return (toRows(Matrix(A.rows, A.cols, vl), .Column), diag(wr))
 }
@@ -232,7 +244,7 @@ public func eig(_ A: Matrix) -> (V: Matrix, D: Matrix) {
 /// - Parameters:
 ///    - A: matrix to find singular values of
 /// - Returns: matrices U, S, and V such that `A = U * S * transpose(V)`
-public func svd(_ A: Matrix) -> (U: Matrix, S: Matrix, V: Matrix) {
+public func svd(_ A: Matrix) -> (U: Matrix, S: Matrix, V: Matrix)? {
     /* LAPACK is using column-major order */
     let _A = toCols(A, .Row)
     
@@ -264,7 +276,10 @@ public func svd(_ A: Matrix) -> (U: Matrix, S: Matrix, V: Matrix) {
     /* Compute SVD */
     dgesdd_(&jobz, &M, &N, &_A.flat, &LDA, &s, &U.flat, &LDU, &VT.flat, &LDVT, &work, &lWork, &iWork, &error)
     
-    precondition(error == 0, "Failed to compute SVD")
+    if error != 0 {
+        logger.error("Failed to compute SVD")
+        return nil
+    } 
     
     return (toRows(U, .Column), diag(Int(M), Int(N), s), VT)
 }
@@ -322,7 +337,7 @@ public func gsvd(_ A: Matrix, _ B: Matrix) -> (U: Matrix, V: Matrix, Q: Matrix, 
 ///     - t: Triangle value (.Upper, .Lower)
 /// - Returns: upper triangular matrix U so that `A = U' * U` or 
 ///            lower triangular matrix L so that `A = L * L'`
-public func chol(_ A: Matrix, _ t: Triangle = .Upper) -> Matrix {
+public func chol(_ A: Matrix, _ t: Triangle = .Upper) -> Matrix? {
     precondition(A.rows == A.cols, "Matrix dimensions must agree")
     
     var uplo: Int8
@@ -346,7 +361,10 @@ public func chol(_ A: Matrix, _ t: Triangle = .Upper) -> Matrix {
     
     dpotrf_(&uplo, &N, &U.flat, &LDA, &error)
     
-    precondition(error == 0, "Failed to compute Cholesky decomposition")
+    if error != 0 {
+        logger.error("Failed to compute Cholesky decomposition")
+        return nil
+    } 
     
     U = toRows(U, .Column)
     
