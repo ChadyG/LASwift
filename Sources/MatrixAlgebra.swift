@@ -109,7 +109,7 @@ public func mpower(_ A: Matrix, _ p: Int) throws -> Matrix {
     case 1:
         return Matrix(A)
     case -1:
-        return inv(A)
+        return try inv(A)
     case _ where p > 1:
         var C = Matrix(A)
         var p = p
@@ -119,7 +119,7 @@ public func mpower(_ A: Matrix, _ p: Int) throws -> Matrix {
         }
         return C
     case _ where p < -1:
-        return inv(mpower(A, -p))
+        return try inv(mpower(A, -p))
     default:
         return eye(A.rows, A.cols)
     }
@@ -139,8 +139,8 @@ public func mpower(_ A: Matrix, _ p: Int) throws -> Matrix {
 ///     - A: matrix
 ///     - p: power to raise matrix to (integer)
 /// - Returns: matrix A raised to power p
-public func ^ (_ a: Matrix, _ p: Int) -> Matrix {
-    return mpower(a, p)
+public func ^ (_ a: Matrix, _ p: Int) throws -> Matrix {
+    return try mpower(a, p)
 }
 
 /// Compute the inverse of a given square matrix.
